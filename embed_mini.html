@@ -23,7 +23,7 @@ var T='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Green_
 var F=['GreenScore','Tree_Score','ParkScore','NDVIScore','BlueScore','GreenwayBonus','GardensBonus','PedestrianBonus','IndustrialPenalty','RoadPenalty','AirQualityScore'];
 var L=JSON.parse(localStorage.getItem('gs')||'[]');
 var curFID=null;
-
+ 
 function checkParent(){
 try{
 var u=window.parent.location.href;
@@ -41,12 +41,12 @@ ss('Hexagon '+fid+' detected','inf');
 }
 setInterval(checkParent,2000);
 checkParent();
-
+ 
 var sa=localStorage.getItem('ga')||'';
 if(sa)document.getElementById('au').value=sa;
-
+ 
 function ss(m,c){var e=document.getElementById('s');e.textContent=m;e.className=c}
-
+ 
 function rl(){
 var c=document.getElementById('l');
 if(!L.length){c.innerHTML='';return}
@@ -59,7 +59,7 @@ if(L.length>=2)h+='<button onclick="cmp()" style="width:100%;margin-top:6px;padd
 h+='<button onclick="clr()" style="width:100%;margin-top:4px;padding:6px;background:#eee;color:#666;border:1px solid #ddd;border-radius:4px;font-size:11px;cursor:pointer">Clear</button>';
 c.innerHTML=h;
 }
-
+ 
 async function doSave(){
 var gidVal=document.getElementById('gid').value.trim();
 var nm=document.getElementById('nm').value.trim();
@@ -98,7 +98,7 @@ rl();
 }catch(e){ss('Error: '+e.message,'er')}
 b.disabled=false;b.textContent='\u{1F4BE} Save';
 }
-
+ 
 function cmp(){
 var h='<table style="border-collapse:collapse;font-size:11px;width:100%;margin-top:8px"><tr><th style="padding:4px;background:#4CAF50;color:#fff;border:1px solid #ddd">Factor</th>';
 L.forEach(function(i){h+='<th style="padding:4px;background:#4CAF50;color:#fff;border:1px solid #ddd">'+i.n+'</th>'});
@@ -112,7 +112,7 @@ h+='</tr>'});
 h+='</table>';
 document.getElementById('l').innerHTML+=h;
 }
-
+ 
 function clr(){L=[];localStorage.removeItem('gs');rl();ss('Cleared','inf')}
 rl();
 </script>
