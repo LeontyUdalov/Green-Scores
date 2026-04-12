@@ -1,13 +1,15 @@
-Embed mini · HTML
-Copy
-
-<div id="app"><button id="b" onclick="doSave()">&#128190; Save Location</button><div id="s"></div><div id="l"></div></div>
+<div id="app">
+<div id="p1">
+<input id="gid" placeholder="GRID_ID (e.g. CQ-40)" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
+<input id="nm" placeholder="Location name" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
+<input id="au" placeholder="Your name" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
+<button id="b" onclick="doSave()" style="width:100%;padding:10px;background:#4CAF50;color:#fff;border:none;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer">&#128190; Save</button>
+</div>
+<div id="s" style="margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none"></div>
+<div id="l"></div>
+</div>
 <style>
 #app{font-family:'Avenir Next',Arial,sans-serif;padding:8px}
-#b{width:100%;padding:10px;background:#4CAF50;color:#fff;border:none;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer}
-#b:hover{background:#45a049}
-#b:disabled{background:#ccc}
-#s{margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none}
 .ok{display:block!important;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
 .er{display:block!important;background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
 .inf{display:block!important;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9}
@@ -21,22 +23,30 @@ var T='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Green_
 var F=['GreenScore','Tree_Score','ParkScore','NDVIScore','BlueScore','GreenwayBonus','GardensBonus','PedestrianBonus','IndustrialPenalty','RoadPenalty','AirQualityScore'];
 var L=JSON.parse(localStorage.getItem('gs')||'[]');
 var curFID=null;
- 
+
 function checkParent(){
 try{
 var u=window.parent.location.href;
 var m=u.match(/%3A(\d+)$/i)||u.match(/:(\d+)$/);
 if(m){
 var fid=+m[1];
-if(fid!==curFID){curFID=fid;ss('Ready: hexagon '+fid+' selected','inf')}
+if(fid!==curFID){
+curFID=fid;
+document.getElementById('gid').value='FID:'+fid;
+document.getElementById('gid').disabled=true;
+ss('Hexagon '+fid+' detected','inf');
+}
 }
 }catch(e){}
 }
 setInterval(checkParent,2000);
 checkParent();
- 
+
+var sa=localStorage.getItem('ga')||'';
+if(sa)document.getElementById('au').value=sa;
+
 function ss(m,c){var e=document.getElementById('s');e.textContent=m;e.className=c}
- 
+
 function rl(){
 var c=document.getElementById('l');
 if(!L.length){c.innerHTML='';return}
@@ -49,49 +59,29 @@ if(L.length>=2)h+='<button onclick="cmp()" style="width:100%;margin-top:6px;padd
 h+='<button onclick="clr()" style="width:100%;margin-top:4px;padding:6px;background:#eee;color:#666;border:1px solid #ddd;border-radius:4px;font-size:11px;cursor:pointer">Clear</button>';
 c.innerHTML=h;
 }
- 
+
 async function doSave(){
-var fid=curFID;
-if(!fid){
-var gid=prompt('Enter GRID_ID from the map (e.g. CQ-40):');
-if(!gid)return;
-gid=gid.trim().toUpperCase();
-var nm=prompt('Name this location:',gid);
-if(!nm)return;
-var au=prompt('Your name:',localStorage.getItem('ga')||'');
-if(au===null)au='';
+var gidVal=document.getElementById('gid').value.trim();
+var nm=document.getElementById('nm').value.trim();
+var au=document.getElementById('au').value.trim();
+if(!nm){ss('Enter a location name','er');return}
 var b=document.getElementById('b');
 b.disabled=true;b.textContent='Saving...';
 ss('Reading scores...','inf');
 try{
-var r=await fetch(H+"/query?where=GRID_ID='"+gid+"'&outFields="+F.join(',')+'&f=json');
+var url;
+if(curFID){
+url=H+'/query?where=TARGET_FID='+curFID+'&outFields='+F.join(',')+'&f=json';
+}else if(gidVal){
+var g=gidVal.toUpperCase();
+url=H+"/query?where=GRID_ID='"+g+"'&outFields="+F.join(',')+'&f=json';
+}else{ss('Enter GRID_ID or select on map','er');b.disabled=false;b.textContent='\u{1F4BE} Save';return}
+var r=await fetch(url);
 var d=await r.json();
-if(!d.features||!d.features.length)throw new Error('Not found: '+gid);
+if(!d.features||!d.features.length)throw new Error('Hexagon not found');
 var a=d.features[0].attributes;
-await saveRecord(gid,nm,au,a);
-}catch(e){ss('Error: '+e.message,'er')}
-b.disabled=false;b.textContent='\u{1F4BE} Save Location';
-return;
-}
-if(L.find(function(x){return x.f===fid})){ss('Already saved!','inf');return}
-var nm=prompt('Name this location:');
-if(!nm)return;
-var au=prompt('Your name:',localStorage.getItem('ga')||'');
-if(au===null)au='';
-var b=document.getElementById('b');
-b.disabled=true;b.textContent='Saving...';
-ss('Reading scores...','inf');
-try{
-var r=await fetch(H+'/query?where=TARGET_FID='+fid+'&outFields='+F.join(',')+'&f=json');
-var d=await r.json();
-if(!d.features||!d.features.length)throw new Error('Not found');
-var a=d.features[0].attributes;
-await saveRecord(fid,nm,au,a);
-}catch(e){ss('Error: '+e.message,'er')}
-b.disabled=false;b.textContent='\u{1F4BE} Save Location';
-}
- 
-async function saveRecord(id,nm,au,a){
+var id=curFID||gidVal.toUpperCase();
+if(L.find(function(x){return x.f===id})){ss('Already saved!','inf');b.disabled=false;b.textContent='\u{1F4BE} Save';return}
 var at={LocationName:nm,AuthorName:au,GreenScore:Math.round(a.GreenScore||0),Tree_Score:Math.round(a.Tree_Score||0),ParkScore:Math.round(a.ParkScore||0),NDVIScore:Math.round(a.NDVIScore||0),BlueScore:Math.round(a.BlueScore||0),GreenwayBonus:Math.round(a.GreenwayBonus||0),GardenBonus:Math.round(a.GardensBonus||0),PedestrianBonus:Math.round(a.PedestrianBonus||0),IndustrialPenalty:Math.round(a.IndustrialPenalty||0),RoadPenalty:Math.round(a.RoadPenalty||0),AirQualityScore:Math.round(a.AirQualityScore||0),SaveData:Date.now()};
 ss('Saving...','inf');
 var bd=new URLSearchParams();
@@ -102,9 +92,13 @@ if(!d2.addResults||!d2.addResults[0]||!d2.addResults[0].success)throw new Error(
 var it={f:id,n:nm,g:Math.round(a.GreenScore||0),s:{}};
 F.forEach(function(k){it.s[k]=Math.round(a[k]||0)});
 L.push(it);localStorage.setItem('gs',JSON.stringify(L));localStorage.setItem('ga',au);
-ss(nm+' saved! (Score: '+it.g+')','ok');rl();
+ss(nm+' saved! (Score: '+it.g+')','ok');
+document.getElementById('nm').value='';
+rl();
+}catch(e){ss('Error: '+e.message,'er')}
+b.disabled=false;b.textContent='\u{1F4BE} Save';
 }
- 
+
 function cmp(){
 var h='<table style="border-collapse:collapse;font-size:11px;width:100%;margin-top:8px"><tr><th style="padding:4px;background:#4CAF50;color:#fff;border:1px solid #ddd">Factor</th>';
 L.forEach(function(i){h+='<th style="padding:4px;background:#4CAF50;color:#fff;border:1px solid #ddd">'+i.n+'</th>'});
@@ -118,7 +112,7 @@ h+='</tr>'});
 h+='</table>';
 document.getElementById('l').innerHTML+=h;
 }
- 
-function clr(){if(confirm('Clear all?')){L=[];localStorage.removeItem('gs');rl();ss('Cleared','inf')}}
+
+function clr(){L=[];localStorage.removeItem('gs');rl();ss('Cleared','inf')}
 rl();
 </script>
