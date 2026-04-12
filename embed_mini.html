@@ -1,8 +1,8 @@
-<div id="app"><button id="b" onclick="doSave()"> Save Location</button><div id="s"></div><div id="l"></div></div>
+<div id="app"><button id="b" onclick="doSave()">&#128190; Save Location</button><div id="s"></div><div id="l"></div></div>
 <style>
 #app{font-family:'Avenir Next',Arial,sans-serif;padding:8px}
-#b{width:100%;padding:10px;background:#72b04b;color:#fff;border:none;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer}
-#b:hover{background:#72b04b}
+#b{width:100%;padding:10px;background:#4CAF50;color:#fff;border:none;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer}
+#b:hover{background:#45a049}
 #b:disabled{background:#ccc}
 #s{margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none}
 .ok{display:block!important;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
@@ -17,33 +17,11 @@ var H='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Van_He
 var T='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Green_Score_Saved/FeatureServer/0';
 var F=['GreenScore','Tree_Score','ParkScore','NDVIScore','BlueScore','GreenwayBonus','GardensBonus','PedestrianBonus','IndustrialPenalty','RoadPenalty','AirQualityScore'];
 var L=JSON.parse(localStorage.getItem('gs')||'[]');
-var selAttr=null;
-var selFID=null;
- 
-window.addEventListener('message',function(e){
-try{
-var d=e.data;
-if(!d)return;
-if(typeof d==='string'){try{d=JSON.parse(d)}catch(x){return}}
-console.log('MSG:',JSON.stringify(d).substring(0,500));
-var attr=null;
-if(d.attributes){attr=d.attributes}
-else if(d.feature&&d.feature.attributes){attr=d.feature.attributes}
-else if(d.features&&d.features[0]&&d.features[0].attributes){attr=d.features[0].attributes}
-else if(d.data&&d.data.attributes){attr=d.data.attributes}
-else if(d.data&&d.data[0]&&d.data[0].attributes){attr=d.data[0].attributes}
-else if(d.records&&d.records[0]){attr=d.records[0]}
-if(attr){
-selAttr=attr;
-selFID=attr.TARGET_FID||attr.OBJECTID||null;
-ss('Location ready (FID:'+selFID+', Score:'+Math.round(attr.GreenScore||0)+')','inf');
-}
-}catch(ex){console.log('MSG err:',ex)}
-});
  
 function gid(){
-if(selFID)return selFID;
-try{var u=window.parent.location.href;var m=u.match(/%3A(\d+)$/i);if(m)return+m[1];m=u.match(/:(\d+)$/);if(m)return+m[1]}catch(e){}
+var p=new URLSearchParams(window.location.search);
+var fid=p.get('fid');
+if(fid&&!isNaN(fid))return+fid;
 return null;
 }
  
@@ -64,25 +42,20 @@ c.innerHTML=h;
  
 async function doSave(){
 var fid=gid();
-var useApi=!selAttr;
-if(!fid&&!selAttr){ss('Select a location on the map first','er');return}
-if(fid&&L.find(function(x){return x.f===fid})){ss('Already saved!','inf');return}
+if(!fid){ss('Select a location on the map first','er');return}
+if(L.find(function(x){return x.f===fid})){ss('Already saved!','inf');return}
 var nm=prompt('Name this location:');
 if(!nm)return;
 var au=prompt('Your name:',localStorage.getItem('ga')||'');
 if(au===null)au='';
 var b=document.getElementById('b');
 b.disabled=true;b.textContent='Saving...';
-try{
-var a=selAttr;
-if(useApi&&fid){
 ss('Reading scores...','inf');
+try{
 var r=await fetch(H+'/query?where=TARGET_FID='+fid+'&outFields='+F.join(',')+'&f=json');
 var d=await r.json();
 if(!d.features||!d.features.length)throw new Error('Hexagon not found');
-a=d.features[0].attributes;
-}
-if(!a)throw new Error('No data available');
+var a=d.features[0].attributes;
 var at={LocationName:nm,AuthorName:au,GreenScore:Math.round(a.GreenScore||0),Tree_Score:Math.round(a.Tree_Score||0),ParkScore:Math.round(a.ParkScore||0),NDVIScore:Math.round(a.NDVIScore||0),BlueScore:Math.round(a.BlueScore||0),GreenwayBonus:Math.round(a.GreenwayBonus||0),GardenBonus:Math.round(a.GardensBonus||0),PedestrianBonus:Math.round(a.PedestrianBonus||0),IndustrialPenalty:Math.round(a.IndustrialPenalty||0),RoadPenalty:Math.round(a.RoadPenalty||0),AirQualityScore:Math.round(a.AirQualityScore||0),SaveData:Date.now()};
 ss('Saving...','inf');
 var bd=new URLSearchParams();
@@ -90,7 +63,6 @@ bd.append('features',JSON.stringify([{attributes:at}]));bd.append('f','json');
 var r2=await fetch(T+'/addFeatures',{method:'POST',body:bd});
 var d2=await r2.json();
 if(!d2.addResults||!d2.addResults[0]||!d2.addResults[0].success)throw new Error('Save failed');
-if(!fid)fid=Date.now();
 var it={f:fid,n:nm,g:Math.round(a.GreenScore||0),s:{}};
 F.forEach(function(k){it.s[k]=Math.round(a[k]||0)});
 L.push(it);localStorage.setItem('gs',JSON.stringify(L));localStorage.setItem('ga',au);
