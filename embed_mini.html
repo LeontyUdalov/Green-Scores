@@ -1,9 +1,11 @@
-<<div id="app">
+<div id="app">
 <input id="gid" placeholder="Area ID (e.g. CQ-40)" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
 <input id="nm" placeholder="Location name" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
 <button id="b">Save</button>
-<div id="s"></div>
+<div id="s" style="margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none"></div>
 <div id="l"></div>
+<button id="cmpBtn" style="display:none;width:100%;margin-top:6px;padding:8px;background:#72b04b;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">Compare</button>
+<button id="clrBtn" style="display:none;width:100%;margin-top:4px;padding:6px;background:#dce4d5;color:#555;border:1px solid #bbb;border-radius:4px;font-size:11px;cursor:pointer">Clear</button>
 <div id="ct"></div>
 </div>
 <style>
@@ -11,7 +13,6 @@
 #b{width:100%;padding:10px;background:#72b04b;color:#fff;border:none;border-radius:5px;font-size:14px;font-weight:400;cursor:pointer}
 #b:hover{background:#5f9a3a}
 #b:disabled{background:#ccc}
-#s{margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none}
 .ok{display:block!important;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
 .er{display:block!important;background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
 .inf{display:block!important;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9}
@@ -28,11 +29,8 @@ var cmpOpen=false;
 var curFID=null;
 
 document.getElementById('b').addEventListener('click',doSave);
-
-document.getElementById('app').addEventListener('click',function(e){
-if(e.target&&e.target.id==='cmpBtn'){cmp()}
-if(e.target&&e.target.id==='clrBtn'){clr()}
-});
+document.getElementById('cmpBtn').addEventListener('click',cmp);
+document.getElementById('clrBtn').addEventListener('click',clr);
 
 function checkParent(){
 try{
@@ -56,15 +54,17 @@ function ss(m,c){var e=document.getElementById('s');e.textContent=m;e.className=
 
 function rl(){
 var c=document.getElementById('l');
-if(!L.length){c.innerHTML='';document.getElementById('ct').innerHTML='';cmpOpen=false;return}
+var cmpB=document.getElementById('cmpBtn');
+var clrB=document.getElementById('clrBtn');
+if(!L.length){c.innerHTML='';cmpB.style.display='none';clrB.style.display='none';document.getElementById('ct').innerHTML='';cmpOpen=false;return}
 var h='<div style="font-size:12px;font-weight:700;border-bottom:1px solid #ddd;padding:4px 0;margin-top:8px">Saved ('+L.length+')</div>';
 L.forEach(function(i){
 var cl=i.g>=60?'h':i.g>=30?'m':'lo';
 h+='<div class="it"><span>'+i.n+'</span><span class="sc '+cl+'">'+i.g+'</span></div>';
 });
-if(L.length>=2)h+='<button id="cmpBtn" style="width:100%;margin-top:6px;padding:8px;background:#72b04b;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">Compare</button>';
-h+='<button id="clrBtn" style="width:100%;margin-top:4px;padding:6px;background:#dce4d5;color:#555;border:1px solid #bbb;border-radius:4px;font-size:11px;cursor:pointer">Clear</button>';
 c.innerHTML=h;
+cmpB.style.display=L.length>=2?'block':'none';
+clrB.style.display='block';
 }
 
 async function doSave(){
