@@ -1,6 +1,7 @@
 <div id="app">
 <input id="gid" placeholder="Area ID (e.g. CQ-40)" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
-<input id="nm" placeholder="Location name (Option)" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
+<input id="nm" placeholder="Location name" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
+<input id="au" placeholder="Your name" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
 <button id="b" onclick="doSave()">Save</button>
 <div id="s"></div>
 <div id="l"></div>
@@ -8,7 +9,7 @@
 </div>
 <style>
 #app{font-family:'Avenir Next',Arial,sans-serif;padding:8px}
-#b{width:100%;padding:10px;background:#72b04b;color:#00531d;border:none;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer}
+#b{width:100%;padding:10px;background:#72b04b;color:#000000;border:none;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer}
 #b:hover{background:#5f9a3a}
 #b:disabled{background:#ccc}
 #s{margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none}
@@ -113,7 +114,7 @@ if(cmpOpen){ct.innerHTML='';cmpOpen=false;return}
 var h='<table style="border-collapse:collapse;font-size:11px;width:100%;margin-top:8px"><tr><th style="padding:4px;background:#72b04b;color:#fff;border:1px solid #ddd">Factor</th>';
 L.forEach(function(i){h+='<th style="padding:4px;background:#72b04b;color:#fff;border:1px solid #ddd">'+i.n+'</th>'});
 h+='</tr>';
-var lb={GreenScore:'Green Score',Tree_Score:'Tree',ParkScore:'Park',NDVIScore:'NDVI',BlueScore:'Blue',GreenwayBonus:'Greenway',GardensBonus:'Gardens',PedestrianBonus:'Pedestrian',IndustrialPenalty:'Industrial P',RoadPenalty:'Road Penalty',AirQualityScore:'Air Quality'};
+var lb={GreenScore:'Green Score',Tree_Score:'Tree',ParkScore:'Park',NDVIScore:'NDVI',BlueScore:'Blue',GreenwayBonus:'Greenway',GardensBonus:'Gardens',PedestrianBonus:'Pedestrian',IndustrialPenalty:'Industrial',RoadPenalty:'Road',AirQualityScore:'Air Quality'};
 F.forEach(function(f){
 var bg=f==='GreenScore'?';background:#dce4d5;font-weight:700':'';
 h+='<tr><td style="padding:3px 6px;border:1px solid #ddd;font-weight:600'+bg+'">'+(lb[f]||f)+'</td>';
