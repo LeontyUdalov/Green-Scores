@@ -1,14 +1,14 @@
-<div id="app">
+<<div id="app">
 <input id="gid" placeholder="Area ID (e.g. CQ-40)" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
 <input id="nm" placeholder="Location name" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
-<button id="b" onclick="doSave()">Save</button>
+<button id="b">Save</button>
 <div id="s"></div>
 <div id="l"></div>
 <div id="ct"></div>
 </div>
 <style>
 #app{font-family:'Avenir Next',Arial,sans-serif;padding:8px}
-#b{width:100%;padding:10px;background:#72b04b;color:#000;border:none;border-radius:5px;font-size:14px;font-weight:400;cursor:pointer}
+#b{width:100%;padding:10px;background:#72b04b;color:#fff;border:none;border-radius:5px;font-size:14px;font-weight:400;cursor:pointer}
 #b:hover{background:#5f9a3a}
 #b:disabled{background:#ccc}
 #s{margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none}
@@ -26,6 +26,13 @@ var F=['GreenScore','Tree_Score','ParkScore','NDVIScore','BlueScore','GreenwayBo
 var L=JSON.parse(localStorage.getItem('gs')||'[]');
 var cmpOpen=false;
 var curFID=null;
+
+document.getElementById('b').addEventListener('click',doSave);
+
+document.getElementById('app').addEventListener('click',function(e){
+if(e.target&&e.target.id==='cmpBtn'){cmp()}
+if(e.target&&e.target.id==='clrBtn'){clr()}
+});
 
 function checkParent(){
 try{
@@ -55,8 +62,8 @@ L.forEach(function(i){
 var cl=i.g>=60?'h':i.g>=30?'m':'lo';
 h+='<div class="it"><span>'+i.n+'</span><span class="sc '+cl+'">'+i.g+'</span></div>';
 });
-if(L.length>=2)h+='<button onclick="cmp()" style="width:100%;margin-top:6px;padding:8px;background:#72b04b;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">Compare</button>';
-h+='<button onclick="clr()" style="width:100%;margin-top:4px;padding:6px;background:#dce4d5;color:#555;border:1px solid #bbb;border-radius:4px;font-size:11px;cursor:pointer">Clear</button>';
+if(L.length>=2)h+='<button id="cmpBtn" style="width:100%;margin-top:6px;padding:8px;background:#72b04b;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">Compare</button>';
+h+='<button id="clrBtn" style="width:100%;margin-top:4px;padding:6px;background:#dce4d5;color:#555;border:1px solid #bbb;border-radius:4px;font-size:11px;cursor:pointer">Clear</button>';
 c.innerHTML=h;
 }
 
