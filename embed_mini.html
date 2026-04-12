@@ -1,0 +1,87 @@
+<div id="app"><button id="b" onclick="doSave()">&#128190; Save Location</button><div id="s"></div><div id="l"></div></div>
+<style>
+#app{font-family:Arial,sans-serif;padding:8px}
+#b{width:100%;padding:10px;background:#4CAF50;color:#fff;border:none;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer}
+#b:hover{background:#45a049}
+#b:disabled{background:#ccc}
+#s{margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none}
+.ok{display:block!important;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+.er{display:block!important;background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
+.inf{display:block!important;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9}
+.it{display:flex;justify-content:space-between;padding:5px 8px;margin:3px 0;background:#f5f5f5;border-radius:3px;font-size:12px}
+.sc{font-weight:700;font-size:15px}
+.h{color:#2e7d32}.m{color:#f9a825}.lo{color:#c62828}
+</style>
+<script>
+var H='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Van_Hex_Scores_Embed/FeatureServer/0';
+var T='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Green_Score_Saved/FeatureServer/0';
+var F=['GreenScore','Tree_Score','ParkScore','NDVIScore','BlueScore','GreenwayBonus','GardensBonus','PedestrianBonus','IndustrialPenalty','RoadPenalty','AirQualityScore'];
+var L=JSON.parse(localStorage.getItem('gs')||'[]');
+
+function gid(){
+try{var u=window.parent.location.href;var m=u.match(/%3A(\d+)$/i);if(m)return+m[1];m=u.match(/:(\d+)$/);if(m)return+m[1]}catch(e){}
+return null;
+}
+
+function ss(m,c){var e=document.getElementById('s');e.textContent=m;e.className=c}
+
+function rl(){
+var c=document.getElementById('l');
+if(!L.length){c.innerHTML='';return}
+var h='<div style="font-size:12px;font-weight:700;border-bottom:1px solid #ddd;padding:4px 0;margin-top:8px">Saved ('+L.length+')</div>';
+L.forEach(function(i){
+var cl=i.g>=60?'h':i.g>=30?'m':'lo';
+h+='<div class="it"><span>'+i.n+'</span><span class="sc '+cl+'">'+i.g+'</span></div>';
+});
+if(L.length>=2)h+='<button onclick="cmp()" style="width:100%;margin-top:6px;padding:8px;background:#1565c0;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">Compare</button>';
+h+='<button onclick="clr()" style="width:100%;margin-top:4px;padding:6px;background:#eee;color:#666;border:1px solid #ddd;border-radius:4px;font-size:11px;cursor:pointer">Clear</button>';
+c.innerHTML=h;
+}
+
+async function doSave(){
+var fid=gid();
+if(!fid){ss('Select a location on the map first','er');return}
+if(L.find(function(x){return x.f===fid})){ss('Already saved!','inf');return}
+var nm=prompt('Name this location:');
+if(!nm)return;
+var au=prompt('Your name:',localStorage.getItem('ga')||'');
+if(au===null)au='';
+var b=document.getElementById('b');
+b.disabled=true;b.textContent='Saving...';
+ss('Reading scores...','inf');
+try{
+var r=await fetch(H+'/query?where=TARGET_FID='+fid+'&outFields='+F.join(',')+'&f=json');
+var d=await r.json();
+if(!d.features||!d.features.length)throw new Error('Hexagon not found');
+var a=d.features[0].attributes;
+var at={LocationName:nm,AuthorName:au,GreenScore:Math.round(a.GreenScore||0),Tree_Score:Math.round(a.Tree_Score||0),ParkScore:Math.round(a.ParkScore||0),NDVIScore:Math.round(a.NDVIScore||0),BlueScore:Math.round(a.BlueScore||0),GreenwayBonus:Math.round(a.GreenwayBonus||0),GardenBonus:Math.round(a.GardensBonus||0),PedestrianBonus:Math.round(a.PedestrianBonus||0),IndustrialPenalty:Math.round(a.IndustrialPenalty||0),RoadPenalty:Math.round(a.RoadPenalty||0),AirQualityScore:Math.round(a.AirQualityScore||0),SaveData:Date.now()};
+var bd=new URLSearchParams();
+bd.append('features',JSON.stringify([{attributes:at}]));bd.append('f','json');
+var r2=await fetch(T+'/addFeatures',{method:'POST',body:bd});
+var d2=await r2.json();
+if(!d2.addResults||!d2.addResults[0]||!d2.addResults[0].success)throw new Error('Save failed');
+var it={f:fid,n:nm,g:Math.round(a.GreenScore||0),s:{}};
+F.forEach(function(k){it.s[k]=Math.round(a[k]||0)});
+L.push(it);localStorage.setItem('gs',JSON.stringify(L));localStorage.setItem('ga',au);
+ss(nm+' saved! (Score: '+it.g+')','ok');rl();
+}catch(e){ss('Error: '+e.message,'er')}
+b.disabled=false;b.textContent='\u{1F4BE} Save Location';
+}
+
+function cmp(){
+var h='<table style="border-collapse:collapse;font-size:11px;width:100%;margin-top:8px"><tr><th style="padding:4px;background:#4CAF50;color:#fff;border:1px solid #ddd">Factor</th>';
+L.forEach(function(i){h+='<th style="padding:4px;background:#4CAF50;color:#fff;border:1px solid #ddd">'+i.n+'</th>'});
+h+='</tr>';
+var lb={GreenScore:'Green Score',Tree_Score:'Tree',ParkScore:'Park',NDVIScore:'NDVI',BlueScore:'Blue',GreenwayBonus:'Greenway',GardensBonus:'Gardens',PedestrianBonus:'Pedestrian',IndustrialPenalty:'Industrial',RoadPenalty:'Road',AirQualityScore:'Air Quality'};
+F.forEach(function(f){
+var bg=f==='GreenScore'?';background:#e8f5e9;font-weight:700':'';
+h+='<tr><td style="padding:3px 6px;border:1px solid #ddd;font-weight:600'+bg+'">'+(lb[f]||f)+'</td>';
+L.forEach(function(i){h+='<td style="padding:3px 6px;border:1px solid #ddd;text-align:center'+bg+'">'+(i.s[f]||0)+'</td>'});
+h+='</tr>'});
+h+='</table>';
+document.getElementById('l').innerHTML+=h;
+}
+
+function clr(){if(confirm('Clear all?')){L=[];localStorage.removeItem('gs');rl();ss('Cleared','inf')}}
+rl();
+</script>
