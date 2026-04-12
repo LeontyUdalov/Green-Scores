@@ -1,37 +1,95 @@
+<!-- 
+  Green Score Save & Compare Widget
+  Embedded in ArcGIS Experience Builder via iframe (GitHub Pages)
+  
+  Purpose: Allows users to save Green Score results for selected hexagons
+  and compare multiple saved locations side by side.
+  
+  Architecture:
+  - Reads hexagon scores from public Feature Service (Van_Hex_Scores_Embed)
+  - Writes saved results to public hosted table (Green_Score_Saved)
+  - Uses localStorage for client-side session persistence of saved items
+  - Attempts to auto-detect selected hexagon from parent ExB URL
+
+  Variable reference:
+    H  = HEX_LAYER_URL (public hexagon layer for reading scores)
+    T  = SAVE_TABLE_URL (hosted table for writing saved results)
+    F  = SCORE_FIELDS (array of score field names to query and save)
+    L  = savedLocations (array of saved items, persisted in localStorage)
+    curFID = detectedFID (TARGET_FID auto-detected from parent ExB URL)
+    cmpOpen = isCompareOpen (whether comparison table is visible)
+    ss() = showStatus (display a status message)
+    rl() = renderSavedList (render the saved items list and buttons)
+    doSave() = saveLocation (main save workflow)
+    cmp() = toggleCompare (show/hide comparison table)
+    clr() = clearAll (remove all saved items)
+-->
+
+<!-- ==================== HTML STRUCTURE ==================== -->
 <div id="app">
+<!-- User input: Area ID from the hexagon grid (e.g. CQ-40, BN-54) -->
 <input id="gid" placeholder="Area ID (e.g. CQ-40)" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
+<!-- User input: custom name for this location -->
 <input id="nm" placeholder="Location name" style="width:100%;padding:8px;border:1px solid #aaa;border-radius:4px;font-size:13px;margin-bottom:5px;background:#dce4d5">
+<!-- Main save button -->
 <button id="b">Save</button>
+<!-- Status message area (success/error/info) -->
 <div id="s" style="margin:6px 0;font-size:12px;padding:6px;border-radius:3px;display:none"></div>
+<!-- List of saved locations -->
 <div id="l"></div>
-<button id="cmpBtn" style="display:none;width:100%;margin-top:6px;padding:8px;background:#72b04b;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">Compare</button>
-<button id="clrBtn" style="display:none;width:100%;margin-top:4px;padding:6px;background:#dce4d5;color:#555;border:1px solid #bbb;border-radius:4px;font-size:11px;cursor:pointer">Clear</button>
+<!-- Compare button: toggles comparison table (hidden until 2+ saves) -->
+<button id="cmpBtn" style="display:none;width:100%;margin-top:6px;padding:8px;background:#72b04b;color:#333;border:none;border-radius:4px;font-size:12px;cursor:pointer;font-weight:400">Compare</button>
+<!-- Clear button: removes all saved items (hidden until 1+ saves) -->
+<button id="clrBtn" style="display:none;width:100%;margin-top:4px;padding:6px;background:#dce4d5;color:#333;border:1px solid #bbb;border-radius:4px;font-size:11px;cursor:pointer;font-weight:400">Clear</button>
+<!-- Container for comparison table -->
 <div id="ct"></div>
 </div>
+
+<!-- ==================== STYLES ==================== -->
 <style>
 #app{font-family:'Avenir Next',Arial,sans-serif;padding:8px}
-#b{width:100%;padding:10px;background:#72b04b;color:#fff;border:none;border-radius:5px;font-size:14px;font-weight:400;cursor:pointer}
+/* Save button */
+#b{width:100%;padding:10px;background:#72b04b;color:#333;border:none;border-radius:5px;font-size:14px;font-weight:400;cursor:pointer}
 #b:hover{background:#5f9a3a}
 #b:disabled{background:#ccc}
+/* Status message types */
 .ok{display:block!important;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
 .er{display:block!important;background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
 .inf{display:block!important;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9}
+/* Saved location list item */
 .it{display:flex;justify-content:space-between;padding:5px 8px;margin:3px 0;background:#dce4d5;border-radius:3px;font-size:12px}
+/* Score display with color coding */
 .sc{font-weight:700;font-size:15px}
 .h{color:#2e7d32}.m{color:#f9a825}.lo{color:#c62828}
 </style>
-<script>
-var H='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Van_Hex_Scores_Embed/FeatureServer/0';
-var T='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Green_Score_Saved/FeatureServer/0';
-var F=['GreenScore','Tree_Score','ParkScore','NDVIScore','BlueScore','GreenwayBonus','GardensBonus','PedestrianBonus','IndustrialPenalty','RoadPenalty','AirQualityScore'];
-var L=JSON.parse(localStorage.getItem('gs')||'[]');
-var cmpOpen=false;
-var curFID=null;
 
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+/* ---- ArcGIS REST API Endpoints ---- */
+// Public copy of hexagon layer (read-only, used to query scores by GRID_ID or TARGET_FID)
+var H='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Van_Hex_Scores_Embed/FeatureServer/0';
+// Hosted table for saving user results (public, editing enabled for Add)
+var T='https://services1.arcgis.com/KsnB2VOAvO5LjdB4/arcgis/rest/services/Green_Score_Saved/FeatureServer/0';
+
+/* ---- Score field names to query from hexagon layer and save to table ---- */
+var F=['GreenScore','BaseScore','Tree_Score','ParkScore','NDVIScore','BlueScore','GreenwayBonus','GardensBonus','PedestrianBonus','IndustrialPenalty','RoadPenalty','AirQualityScore'];
+
+/* ---- State variables ---- */
+var L=JSON.parse(localStorage.getItem('gs')||'[]'); // Saved locations from localStorage
+var cmpOpen=false; // Whether comparison table is visible
+var curFID=null; // TARGET_FID detected from parent ExB URL
+
+/* ---- Event listeners (static buttons, avoids sandbox inline handler restrictions) ---- */
 document.getElementById('b').addEventListener('click',doSave);
 document.getElementById('cmpBtn').addEventListener('click',cmp);
 document.getElementById('clrBtn').addEventListener('click',clr);
 
+/* ============================================================
+   AUTO-DETECT: Poll parent ExB URL for selected hexagon
+   ExB appends TARGET_FID to URL when user selects a hexagon
+   e.g. ...#data_s=id%3AdataSource_1-19d450f8fbe-layer-4%3A1753
+   Only works if iframe and parent share same origin
+   ============================================================ */
 function checkParent(){
 try{
 var u=window.parent.location.href;
@@ -40,66 +98,99 @@ if(m){
 var fid=+m[1];
 if(fid!==curFID){
 curFID=fid;
-document.getElementById('gid').value='FID:'+fid;
-document.getElementById('gid').disabled=true;
+document.getElementById('gid').value='FID:'+fid; // Auto-fill Area ID
+document.getElementById('gid').disabled=true; // Lock field
 ss('Hexagon '+fid+' detected','inf');
 }
 }
-}catch(e){}
+}catch(e){/* Cross-origin: user will enter GRID_ID manually */}
 }
-setInterval(checkParent,2000);
-checkParent();
+setInterval(checkParent,2000); // Check every 2 seconds
+checkParent(); // Initial check on load
 
+/* ============================================================
+   UI HELPERS
+   ============================================================ */
+
+// Display a color-coded status message ('ok'=green, 'er'=red, 'inf'=blue)
 function ss(m,c){var e=document.getElementById('s');e.textContent=m;e.className=c}
 
+// Render saved locations list and show/hide Compare & Clear buttons
 function rl(){
 var c=document.getElementById('l');
 var cmpB=document.getElementById('cmpBtn');
 var clrB=document.getElementById('clrBtn');
+// If no saved items, hide everything
 if(!L.length){c.innerHTML='';cmpB.style.display='none';clrB.style.display='none';document.getElementById('ct').innerHTML='';cmpOpen=false;return}
+// Build saved items HTML
 var h='<div style="font-size:12px;font-weight:700;border-bottom:1px solid #ddd;padding:4px 0;margin-top:8px">Saved ('+L.length+')</div>';
 L.forEach(function(i){
+// Color-code: green (60+), yellow (30-59), red (0-29)
 var cl=i.g>=60?'h':i.g>=30?'m':'lo';
 h+='<div class="it"><span>'+i.n+'</span><span class="sc '+cl+'">'+i.g+'</span></div>';
 });
 c.innerHTML=h;
-cmpB.style.display=L.length>=2?'block':'none';
+cmpB.style.display=L.length>=2?'block':'none'; // Show Compare only for 2+ items
 clrB.style.display='block';
 }
 
+/* ============================================================
+   SAVE LOCATION
+   1. Read Area ID (auto-detected FID or manual GRID_ID)
+   2. Query hexagon layer for all scores
+   3. POST record to hosted table via ArcGIS REST API
+   4. Add to local saved list for Compare feature
+   ============================================================ */
 async function doSave(){
 var gidVal=document.getElementById('gid').value.trim();
 var nm=document.getElementById('nm').value.trim();
+// Validate: location name is required
 if(!nm){ss('Enter a location name','er');return}
 var b=document.getElementById('b');
 b.disabled=true;b.textContent='Saving...';
 ss('Reading scores...','inf');
 try{
 var url;var gridId='';
+// Build query URL based on detection method
 if(curFID){
+// Auto-detected: query by TARGET_FID
 url=H+'/query?where=TARGET_FID='+curFID+'&outFields='+F.join(',')+',GRID_ID&f=json';
 }else if(gidVal){
+// Manual input: query by GRID_ID
 gridId=gidVal.toUpperCase();
 url=H+"/query?where=GRID_ID='"+gridId+"'&outFields="+F.join(',')+',GRID_ID&f=json';
 }else{ss('Enter Area ID or select on map','er');b.disabled=false;b.textContent='Save';return}
+
+// Step 1: Query hexagon layer for scores
 var r=await fetch(url);
 var d=await r.json();
 if(!d.features||!d.features.length)throw new Error('Hexagon not found');
 var a=d.features[0].attributes;
 gridId=a.GRID_ID||gridId;
 var id=curFID||gridId;
+
+// Check for duplicates
 if(L.find(function(x){return x.f===id})){ss('Already saved!','inf');b.disabled=false;b.textContent='Save';return}
-var at={LocationName:nm,AuthorName:'',GRID_ID:gridId,GreenScore:Math.round(a.GreenScore||0),Tree_Score:Math.round(a.Tree_Score||0),ParkScore:Math.round(a.ParkScore||0),NDVIScore:Math.round(a.NDVIScore||0),BlueScore:Math.round(a.BlueScore||0),GreenwayBonus:Math.round(a.GreenwayBonus||0),GardenBonus:Math.round(a.GardensBonus||0),PedestrianBonus:Math.round(a.PedestrianBonus||0),IndustrialPenalty:Math.round(a.IndustrialPenalty||0),RoadPenalty:Math.round(a.RoadPenalty||0),AirQualityScore:Math.round(a.AirQualityScore||0),SaveData:Date.now()};
+
+// Step 2: Build record matching Green_Score_Saved table schema
+// Note: source field GardensBonus maps to target field GardenBonus
+var at={LocationName:nm,AuthorName:'',GRID_ID:gridId,GreenScore:Math.round(a.GreenScore||0),BaseScore:Math.round(a.BaseScore||0),Tree_Score:Math.round(a.Tree_Score||0),ParkScore:Math.round(a.ParkScore||0),NDVIScore:Math.round(a.NDVIScore||0),BlueScore:Math.round(a.BlueScore||0),GreenwayBonus:Math.round(a.GreenwayBonus||0),GardenBonus:Math.round(a.GardensBonus||0),PedestrianBonus:Math.round(a.PedestrianBonus||0),IndustrialPenalty:Math.round(a.IndustrialPenalty||0),RoadPenalty:Math.round(a.RoadPenalty||0),AirQualityScore:Math.round(a.AirQualityScore||0),SaveData:Date.now()};
 ss('Saving...','inf');
+
+// Step 3: POST to hosted table via ArcGIS REST API addFeatures
 var bd=new URLSearchParams();
 bd.append('features',JSON.stringify([{attributes:at}]));bd.append('f','json');
 var r2=await fetch(T+'/addFeatures',{method:'POST',body:bd});
 var d2=await r2.json();
 if(!d2.addResults||!d2.addResults[0]||!d2.addResults[0].success)throw new Error('Save failed');
+
+// Step 4: Add to local saved list for Compare feature
 var it={f:id,n:nm,g:Math.round(a.GreenScore||0),s:{}};
 F.forEach(function(k){it.s[k]=Math.round(a[k]||0)});
 L.push(it);localStorage.setItem('gs',JSON.stringify(L));
 ss(nm+' saved! (Score: '+it.g+')','ok');
+
+// Reset form for next entry
 document.getElementById('nm').value='';
 document.getElementById('gid').value='';
 document.getElementById('gid').disabled=false;
@@ -110,14 +201,23 @@ rl();
 b.disabled=false;b.textContent='Save';
 }
 
+/* ============================================================
+   COMPARE: Toggle comparison table showing all scores
+   side by side for all saved locations
+   ============================================================ */
 function cmp(){
 var ct=document.getElementById('ct');
+// Toggle off if already open
 if(cmpOpen){ct.innerHTML='';cmpOpen=false;return}
+// Build table header with location names
 var h='<table style="border-collapse:collapse;font-size:11px;width:100%;margin-top:8px"><tr><th style="padding:4px;background:#72b04b;color:#fff;border:1px solid #ddd">Factor</th>';
 L.forEach(function(i){h+='<th style="padding:4px;background:#72b04b;color:#fff;border:1px solid #ddd">'+i.n+'</th>'});
 h+='</tr>';
-var lb={GreenScore:'Green Score',Tree_Score:'Tree',ParkScore:'Park',NDVIScore:'NDVI',BlueScore:'Blue',GreenwayBonus:'Greenway',GardensBonus:'Gardens',PedestrianBonus:'Pedestrian',IndustrialPenalty:'Industrial',RoadPenalty:'Road',AirQualityScore:'Air Quality'};
+// Human-readable labels for score fields
+var lb={GreenScore:'Green Score',BaseScore:'Base Score',Tree_Score:'Tree',ParkScore:'Park',NDVIScore:'NDVI',BlueScore:'Blue',GreenwayBonus:'Greenway',GardensBonus:'Gardens',PedestrianBonus:'Pedestrian',IndustrialPenalty:'Industrial',RoadPenalty:'Road',AirQualityScore:'Air Quality'};
+// Build rows for each score field
 F.forEach(function(f){
+// Highlight the Green Score row
 var bg=f==='GreenScore'?';background:#dce4d5;font-weight:700':'';
 h+='<tr><td style="padding:3px 6px;border:1px solid #ddd;font-weight:600'+bg+'">'+(lb[f]||f)+'</td>';
 L.forEach(function(i){h+='<td style="padding:3px 6px;border:1px solid #ddd;text-align:center'+bg+'">'+(i.s[f]||0)+'</td>'});
@@ -127,6 +227,11 @@ ct.innerHTML=h;
 cmpOpen=true;
 }
 
+/* ============================================================
+   CLEAR: Remove all saved locations from localStorage and UI
+   ============================================================ */
 function clr(){L=[];localStorage.removeItem('gs');rl();document.getElementById('ct').innerHTML='';cmpOpen=false;ss('Cleared','inf')}
+
+/* ---- Initial render on page load ---- */
 rl();
 </script>
