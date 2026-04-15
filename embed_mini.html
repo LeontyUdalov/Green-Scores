@@ -105,6 +105,37 @@ ss('Hexagon '+fid+' detected','inf');
 }
 }catch(e){/* Cross-origin: user will enter GRID_ID manually */}
 }
+ /* ============================================================
+   LISTEN FOR DATA FROM ExB via "Connect to data"
+   When Embed widget is connected to Score Hexagons layer in ExB,
+   ExB sends selected feature attributes via postMessage.
+   This auto-fills the Area ID field when user selects a hexagon.
+   ============================================================ */
+window.addEventListener('message',function(e){
+try{
+var d=e.data;
+if(!d)return;
+/* ExB may send data as string or object — handle both */
+if(typeof d==='string'){try{d=JSON.parse(d)}catch(x){return}}
+
+/* Try to find attributes in different possible message formats */
+var attr=null;
+if(d.attributes)attr=d.attributes;
+else if(d.feature&&d.feature.attributes)attr=d.feature.attributes;
+else if(d.features&&d.features[0])attr=d.features[0].attributes;
+else if(d.data&&d.data.attributes)attr=d.data.attributes;
+else if(d.data&&d.data[0])attr=d.data[0].attributes;
+
+/* If we found valid hexagon attributes, auto-fill the form */
+if(attr&&(attr.GRID_ID||attr.TARGET_FID)){
+document.getElementById('gid').value=attr.GRID_ID||('FID:'+attr.TARGET_FID);
+document.getElementById('gid').disabled=true;
+curFID=attr.TARGET_FID||null;
+ss('Hexagon '+(attr.GRID_ID||attr.TARGET_FID)+' detected','inf');
+}
+}catch(ex){}
+});
+
 setInterval(checkParent,2000); // Check every 2 seconds
 checkParent(); // Initial check on load
 
