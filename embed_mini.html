@@ -81,17 +81,17 @@ var curFID=null; // TARGET_FID detected from parent ExB URL
 
 /* ============================================================
    READ GRID_ID FROM URL PARAMETER
-   If ExB passes ?grid=BU-59 in the iframe URL,
-   auto-fill the Area ID field with that value
+   If grid param exists and is not empty, auto-fill Area ID.
+   If empty or missing, show widget normally for manual input.
+   Also re-check URL every 2 seconds in case ExB updates iframe.
    ============================================================ */
 var urlParams=new URLSearchParams(window.location.search);
 var urlGrid=urlParams.get('grid');
-if(urlGrid){
+if(urlGrid&&urlGrid.length>1){
 document.getElementById('gid').value=urlGrid;
 document.getElementById('gid').disabled=true;
 ss('Hexagon '+urlGrid+' detected','inf');
 }
-
 /* ---- Event listeners (static buttons, avoids sandbox inline handler restrictions) ---- */
 document.getElementById('b').addEventListener('click',doSave);
 document.getElementById('cmpBtn').addEventListener('click',cmp);
