@@ -79,6 +79,19 @@ var L=JSON.parse(localStorage.getItem('gs')||'[]'); // Saved locations from loca
 var cmpOpen=false; // Whether comparison table is visible
 var curFID=null; // TARGET_FID detected from parent ExB URL
 
+/* ============================================================
+   READ GRID_ID FROM URL PARAMETER
+   If ExB passes ?grid=BU-59 in the iframe URL,
+   auto-fill the Area ID field with that value
+   ============================================================ */
+var urlParams=new URLSearchParams(window.location.search);
+var urlGrid=urlParams.get('grid');
+if(urlGrid){
+document.getElementById('gid').value=urlGrid;
+document.getElementById('gid').disabled=true;
+ss('Hexagon '+urlGrid+' detected','inf');
+}
+
 /* ---- Event listeners (static buttons, avoids sandbox inline handler restrictions) ---- */
 document.getElementById('b').addEventListener('click',doSave);
 document.getElementById('cmpBtn').addEventListener('click',cmp);
