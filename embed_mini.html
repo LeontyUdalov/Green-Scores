@@ -130,7 +130,8 @@ var d=e.data;
 if(!d)return;
 /* ExB may send data as string or object — handle both */
 if(typeof d==='string'){try{d=JSON.parse(d)}catch(x){return}}
-
+/* DEBUG: show all messages from ExB in status bar */
+ss('MSG: '+JSON.stringify(d).substring(0,100),'inf');
 /* Try to find attributes in different possible message formats */
 var attr=null;
 if(d.attributes)attr=d.attributes;
